@@ -1,4 +1,4 @@
-import { Flight } from './supabase';
+import { Flight, Hotel } from './supabase';
 
 const API_KEY = import.meta.env.VITE_AMADEUS_API_KEY;
 const API_SECRET = import.meta.env.VITE_AMADEUS_API_SECRET;
@@ -45,6 +45,27 @@ interface AmadeusFlightOffersResponse {
   };
 }
 
+interface AmadeusHotelOffer {
+  hotel: {
+    hotelId: string;
+    name: string;
+    cityCode: string;
+  };
+  offers: Array<{
+    id: string;
+    checkInDate: string;
+    checkOutDate: string;
+    price: {
+      total: string;
+      currency: string;
+    };
+  }>;
+}
+
+interface AmadeusHotelOffersResponse {
+  data: AmadeusHotelOffer[];
+}
+
 let cachedToken: string | null = null;
 let tokenExpiresAt: number = 0;
 
@@ -86,6 +107,15 @@ function formatDuration(isoDuration: string): string {
   const hours = match[1] || '0';
   const minutes = match[2] || '0';
   return `${hours}h ${minutes}m`;
+}
+
+function formatTime(isoDateTime: string): string {
+  const date = new Date(isoDateTime);
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
 function getAirlineName(carrierCode: string, dictionaries?: { carriers?: Record<string, string> }): string {
@@ -165,7 +195,10 @@ export async function searchAmadeusFlights(
       from: firstSegment.departure.iataCode,
       to: lastSegment.arrival.iataCode,
       date: firstSegment.departure.at.split('T')[0],
+      departure_time: formatTime(firstSegment.departure.at),
+      arrival_time: formatTime(lastSegment.arrival.at),
       airline: airlineName,
+      flight_number: `${firstSegment.carrierCode}${firstSegment.number}`,
       price_per_person: Math.round(parseFloat(bestOffer.price.total)),
       duration: formatDuration(itinerary.duration),
     };
@@ -206,6 +239,78 @@ export async function getIATACode(cityName: string): Promise<string | null> {
     return null;
   } catch (error) {
     console.error('Error getting IATA code:', error);
+    return null;
+  }
+}
+
+export async function searchAmadeusHotels(
+  city: string,
+  checkInDate: string,
+  checkOutDate: string
+): Promise<Hotel | null> {
+  try {
+    const token = await getAccessToken();
+    const cityCode = await getIATACode(city);
+
+    if (!cityCode) {
+      console.log('Could not get city code for hotel search');
+      return null;
+    }
+
+    const params = new URLSearchParams({
+      cityCode: cityCode,
+      checkInDate: checkInDate,
+      checkOutDate: checkOutDate,
+      adults: '1',
+      radius: '20',
+      radiusUnit: 'KM',
+      ratings: '3,4,5',
+      amenities: 'WIFI',
+      bestRateOnly: 'true',
+    });
+
+    const response = await fetch(`${BASE_URL}/v3/shopping/hotel-offers?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Amadeus Hotel API error:', error);
+      return null;
+    }
+
+    const data: AmadeusHotelOffersResponse = await response.json();
+
+    if (!data.data || data.data.length === 0) {
+      console.log('No hotels found for this city');
+      return null;
+    }
+
+    const bestHotel = data.data[0];
+    const bestOffer = bestHotel.offers[0];
+
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+    const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+
+    const totalPrice = parseFloat(bestOffer.price.total);
+    const pricePerNight = Math.round(totalPrice / nights);
+
+    return {
+      city: city,
+      name: bestHotel.hotel.name,
+      check_in_date: checkInDate,
+      check_out_date: checkOutDate,
+      price_per_night: pricePerNight,
+      nights: nights,
+      total_price: Math.round(totalPrice),
+    };
+  } catch (error) {
+    console.error('Error searching Amadeus hotels:', error);
     return null;
   }
 }

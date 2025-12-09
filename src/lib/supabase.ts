@@ -55,7 +55,10 @@ export interface Flight {
   from: string;
   to: string;
   date: string;
+  departure_time: string;
+  arrival_time: string;
   airline: string;
+  flight_number: string;
   price_per_person: number;
   duration: string;
 }

@@ -1,5 +1,5 @@
 import { Flight, Hotel, Activity } from './supabase';
-import { searchAmadeusFlights, getIATACode } from './amadeus-service';
+import { searchAmadeusFlights, searchAmadeusHotels, getIATACode } from './amadeus-service';
 
 const TAVILY_API_KEY = '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';
 
@@ -76,11 +76,18 @@ export async function searchFlights(
 
     const duration = calculateFlightDuration(distance);
 
+    const departureTime = `${8 + Math.floor(Math.random() * 10)}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')} AM`;
+    const arrivalHours = Math.floor(parseFloat(duration));
+    const flightNumber = `${randomAirline.substring(0, 2).toUpperCase()}${Math.floor(Math.random() * 9000) + 1000}`;
+
     return {
       from: origin,
       to: destination,
       date,
+      departure_time: departureTime,
+      arrival_time: 'TBD',
       airline: randomAirline,
+      flight_number: flightNumber,
       price_per_person: Math.round(priceVariation),
       duration,
     };
@@ -97,6 +104,12 @@ export async function searchHotels(
   purpose: string
 ): Promise<Hotel | null> {
   try {
+    const amadeusResult = await searchAmadeusHotels(city, checkIn, checkOut);
+
+    if (amadeusResult) {
+      return amadeusResult;
+    }
+
     const query = `best hotels in ${city} ${purpose === 'Business' ? 'business hotels' : 'tourist hotels'} average price per night`;
 
     const response = await fetch('https://api.tavily.com/search', {
