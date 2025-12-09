@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, MapPin, Plane, Hotel, Clock, Plus } from 'lucide-react';
 import { GlossyCard } from '../components/GlossyCard';
 import { AnimatedButton } from '../components/AnimatedButton';
@@ -15,8 +15,10 @@ import { useAuth } from '../lib/auth-context';
 export function ItineraryPage() {
   const { tripId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
 
+  const isExplorationMode = tripId === 'new';
   const [trip, setTrip] = useState<Trip | null>(null);
   const [itinerary1, setItinerary1] = useState<ItineraryData | null>(null);
   const [itinerary2, setItinerary2] = useState<ItineraryData | null>(null);
@@ -34,43 +36,51 @@ export function ItineraryPage() {
   }, [tripId]);
 
   const loadTrip = async () => {
-    if (!tripId || !user) return;
+    if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('trips')
-        .select('*')
-        .eq('id', tripId)
-        .eq('user_id', user.id)
-        .single();
+      let tripData: Trip;
 
-      if (error) throw error;
+      if (isExplorationMode) {
+        const state = location.state as { tripData?: Omit<Trip, 'id' | 'created_at' | 'updated_at'> };
 
-      setTrip(data);
+        if (!state?.tripData) {
+          navigate('/trip-details');
+          return;
+        }
 
-      // Generate first itinerary
+        tripData = {
+          ...state.tripData,
+          id: 'temp-id',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as Trip;
+      } else {
+        if (!tripId) return;
+
+        const { data, error } = await supabase
+          .from('trips')
+          .select('*')
+          .eq('id', tripId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) throw error;
+        tripData = data;
+      }
+
+      setTrip(tripData);
+
       const itiner = await generateItinerary(
-        data.destinations,
-        data.travel_start_date,
-        data.travel_end_date,
-        data.purpose,
-        data.traveler_type,
-        data.number_of_travelers,
-        data.origin_city,
-        data.mandatory_activities
+        tripData.destinations,
+        tripData.travel_start_date,
+        tripData.travel_end_date,
+        tripData.purpose,
+        tripData.traveler_type,
+        tripData.number_of_travelers,
+        tripData.origin_city,
+        tripData.mandatory_activities
       );
-
-      const costBreakdown = calculateTotalCost(itiner.flights, itiner.hotels, data.number_of_travelers);
-
-      // Save to database
-      await supabase.from('itineraries').insert({
-        trip_id: tripId,
-        itinerary_data: itiner,
-        total_cost: costBreakdown.total,
-        cost_breakdown: costBreakdown,
-        is_selected: false,
-        version_number: 1,
-      });
 
       setItinerary1(itiner);
     } catch (error: any) {
@@ -99,17 +109,6 @@ export function ItineraryPage() {
         trip.origin_city,
         trip.mandatory_activities
       );
-
-      const costBreakdown = calculateTotalCost(itiner.flights, itiner.hotels, trip.number_of_travelers);
-
-      await supabase.from('itineraries').insert({
-        trip_id: tripId,
-        itinerary_data: itiner,
-        total_cost: costBreakdown.total,
-        cost_breakdown: costBreakdown,
-        is_selected: false,
-        version_number: 2,
-      });
 
       setItinerary2(itiner);
       setComparing(true);
@@ -142,7 +141,7 @@ export function ItineraryPage() {
   };
 
   const saveTrip = async () => {
-    if (!tripId || !selectedItinerary) {
+    if (!selectedItinerary) {
       setToast({
         message: 'Please select an itinerary before saving',
         type: 'error',
@@ -151,28 +150,114 @@ export function ItineraryPage() {
       return;
     }
 
+    if (!trip || !user) return;
+
     setLoading(true);
     try {
       const selectedVersion = selectedItinerary === 1 ? itinerary1 : itinerary2;
       if (!selectedVersion) throw new Error('No itinerary selected');
 
-      await supabase.from('itineraries').update({ is_selected: true }).eq('trip_id', tripId).eq('version_number', selectedItinerary);
+      let savedTripId: string;
 
-      for (const [day, noteContent] of Object.entries(notes)) {
-        if (noteContent) {
-          const { data: itineraryData } = await supabase
-            .from('itineraries')
-            .select('id')
-            .eq('trip_id', tripId)
-            .eq('is_selected', true)
-            .single();
+      if (isExplorationMode) {
+        const { data: newTrip, error: tripError } = await supabase
+          .from('trips')
+          .insert({
+            user_id: user.id,
+            destinations: trip.destinations,
+            travel_start_date: trip.travel_start_date,
+            travel_end_date: trip.travel_end_date,
+            purpose: trip.purpose,
+            traveler_type: trip.traveler_type,
+            number_of_travelers: trip.number_of_travelers,
+            origin_city: trip.origin_city,
+            mandatory_activities: trip.mandatory_activities,
+            traveler_images: trip.traveler_images,
+          })
+          .select()
+          .single();
 
-          if (itineraryData) {
+        if (tripError) throw tripError;
+        savedTripId = newTrip.id;
+
+        const costBreakdownSelected = calculateTotalCost(
+          selectedVersion.flights,
+          selectedVersion.hotels,
+          trip.number_of_travelers
+        );
+
+        const { data: savedItinerary, error: itineraryError } = await supabase
+          .from('itineraries')
+          .insert({
+            trip_id: savedTripId,
+            itinerary_data: selectedVersion,
+            total_cost: costBreakdownSelected.total,
+            cost_breakdown: costBreakdownSelected,
+            is_selected: true,
+            version_number: selectedItinerary,
+          })
+          .select()
+          .single();
+
+        if (itineraryError) throw itineraryError;
+
+        if (itinerary2 && selectedItinerary === 2 && itinerary1) {
+          const costBreakdown1 = calculateTotalCost(itinerary1.flights, itinerary1.hotels, trip.number_of_travelers);
+          await supabase.from('itineraries').insert({
+            trip_id: savedTripId,
+            itinerary_data: itinerary1,
+            total_cost: costBreakdown1.total,
+            cost_breakdown: costBreakdown1,
+            is_selected: false,
+            version_number: 1,
+          });
+        } else if (itinerary2 && selectedItinerary === 1) {
+          const costBreakdown2 = calculateTotalCost(itinerary2.flights, itinerary2.hotels, trip.number_of_travelers);
+          await supabase.from('itineraries').insert({
+            trip_id: savedTripId,
+            itinerary_data: itinerary2,
+            total_cost: costBreakdown2.total,
+            cost_breakdown: costBreakdown2,
+            is_selected: false,
+            version_number: 2,
+          });
+        }
+
+        for (const [day, noteContent] of Object.entries(notes)) {
+          if (noteContent) {
             await supabase.from('notes').insert({
-              itinerary_id: itineraryData.id,
+              itinerary_id: savedItinerary.id,
               day_number: parseInt(day),
               note_content: noteContent,
             });
+          }
+        }
+      } else {
+        if (!tripId) return;
+        savedTripId = tripId;
+
+        await supabase
+          .from('itineraries')
+          .update({ is_selected: true })
+          .eq('trip_id', tripId)
+          .eq('version_number', selectedItinerary);
+
+        for (const [day, noteContent] of Object.entries(notes)) {
+          if (noteContent) {
+            const { data: itineraryData } = await supabase
+              .from('itineraries')
+              .select('id')
+              .eq('trip_id', tripId)
+              .eq('is_selected', true)
+              .maybeSingle();
+
+            if (itineraryData) {
+              await supabase.from('notes').insert({
+                itinerary_id: itineraryData.id,
+                day_number: parseInt(day),
+                note_content: noteContent,
+              });
+            }
           }
         }
       }
@@ -191,7 +276,7 @@ export function ItineraryPage() {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
               },
               body: JSON.stringify({
                 userEmail: user.email,
@@ -611,9 +696,10 @@ export function ItineraryPage() {
                 variant="outline"
                 onClick={() => {
                   setSelectedItinerary(1);
-                  navigate('/trips');
+                  saveTrip();
                 }}
                 className="flex-1"
+                disabled={loading}
               >
                 No, Save This
               </AnimatedButton>

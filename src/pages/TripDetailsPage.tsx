@@ -7,7 +7,6 @@ import { Input } from '../components/Input';
 import { Select } from '../components/Select';
 import { Toast, ToastProps } from '../components/Toast';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth-context';
 
 const DESTINATION_REGIONS: Record<string, string[]> = {
@@ -130,25 +129,25 @@ export function TripDetailsPage() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.from('trips').insert({
-        user_id: user.id,
-        destinations,
-        travel_start_date: startDate,
-        travel_end_date: endDate,
-        purpose,
-        traveler_type: travelerType,
-        number_of_travelers: parseInt(numberOfTravelers),
-        origin_city: originCity,
-        mandatory_activities: mandatoryActivities,
-        traveler_images: previewUrls,
-      }).select().single();
-
-      if (error) throw error;
-
-      navigate(`/itinerary/${data.id}`);
+      navigate('/itinerary/new', {
+        state: {
+          tripData: {
+            user_id: user.id,
+            destinations,
+            travel_start_date: startDate,
+            travel_end_date: endDate,
+            purpose,
+            traveler_type: travelerType,
+            number_of_travelers: parseInt(numberOfTravelers),
+            origin_city: originCity,
+            mandatory_activities: mandatoryActivities,
+            traveler_images: previewUrls,
+          },
+        },
+      });
     } catch (error: any) {
       setToast({
-        message: error.message || 'Failed to save trip details',
+        message: error.message || 'Failed to navigate',
         type: 'error',
         onClose: () => setToast(null),
       });
