@@ -264,9 +264,105 @@ export function ItineraryPage() {
   const costBreakdown = calculateTotalCost(currentItinerary.flights, currentItinerary.hotels, trip.number_of_travelers);
   const dayItinerary = currentItinerary.days[currentDay - 1];
 
+  const costBreakdown1 = calculateTotalCost(itinerary1.flights, itinerary1.hotels, trip.number_of_travelers);
+  const costBreakdown2 = itinerary2 ? calculateTotalCost(itinerary2.flights, itinerary2.hotels, trip.number_of_travelers) : null;
+
+  const renderItineraryCard = (itinerary: ItineraryData, version: 1 | 2, costs: CostBreakdown) => (
+    <div
+      onClick={() => setSelectedItinerary(version)}
+      className={`cursor-pointer transition-all duration-300 ${
+        selectedItinerary === version
+          ? 'ring-4 ring-primary scale-[1.02]'
+          : 'hover:scale-[1.01] opacity-90 hover:opacity-100'
+      }`}
+    >
+      <GlossyCard className="p-6 relative">
+        {selectedItinerary === version && (
+          <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded-full text-sm font-semibold">
+            Selected
+          </div>
+        )}
+        <h3 className="text-white font-bold text-xl mb-4">Option {version}</h3>
+
+        {/* Cost Summary */}
+        <div className="bg-white/10 p-4 rounded-lg mb-4">
+          <p className="text-white/60 text-sm mb-1">Total Cost</p>
+          <p className="text-white font-bold text-3xl">${costs.total}</p>
+          <div className="mt-2 space-y-1 text-sm">
+            <div className="flex justify-between text-white/70">
+              <span>Flights</span>
+              <span>${costs.flights_total}</span>
+            </div>
+            <div className="flex justify-between text-white/70">
+              <span>Hotels</span>
+              <span>${costs.hotels_total}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Flights */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Plane className="text-primary" size={20} />
+            <h4 className="text-white font-semibold">Flights</h4>
+          </div>
+          <div className="space-y-2">
+            {itinerary.flights.map((flight, idx) => (
+              <div key={idx} className="bg-white/5 p-3 rounded-lg text-sm">
+                <p className="text-white font-semibold">
+                  {flight.from} → {flight.to}
+                </p>
+                <p className="text-white/60 text-xs">
+                  {flight.airline} {flight.flight_number}
+                </p>
+                <p className="text-primary text-sm mt-1">
+                  ${Math.round(flight.price_per_person * trip.number_of_travelers)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Hotels */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Hotel className="text-accent" size={20} />
+            <h4 className="text-white font-semibold">Hotels</h4>
+          </div>
+          <div className="space-y-2">
+            {itinerary.hotels.map((hotel, idx) => (
+              <div key={idx} className="bg-white/5 p-3 rounded-lg text-sm">
+                <p className="text-white font-semibold">{hotel.name}</p>
+                <p className="text-white/60 text-xs">
+                  {new Date(hotel.check_in_date).toLocaleDateString()} - {new Date(hotel.check_out_date).toLocaleDateString()}
+                </p>
+                <p className="text-accent text-sm mt-1">
+                  ${Math.round(hotel.total_price)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Sample Activities */}
+        <div>
+          <h4 className="text-white font-semibold mb-3">Sample Activities (Day 1)</h4>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {itinerary.days[0]?.activities.slice(0, 3).map((activity, idx) => (
+              <div key={idx} className="bg-white/5 p-2 rounded-lg text-sm">
+                <p className="text-white font-semibold">{activity.title}</p>
+                <p className="text-white/60 text-xs">{activity.time}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </GlossyCard>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-teal-800 px-4 py-8">
-      <div className="max-w-4xl mx-auto">
+      <div className={comparing && itinerary2 ? "max-w-7xl mx-auto" : "max-w-4xl mx-auto"}>
         <button
           onClick={() => navigate('/trips')}
           className="flex items-center gap-2 text-white/70 hover:text-white transition-colors mb-8"
@@ -294,6 +390,47 @@ export function ItineraryPage() {
             </div>
           </div>
         </GlossyCard>
+
+        {/* Comparison View */}
+        {comparing && itinerary2 && (
+          <>
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold text-white mb-2">Compare Itineraries</h2>
+              <p className="text-white/70">Select your preferred option to continue</p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {renderItineraryCard(itinerary1, 1, costBreakdown1)}
+              {renderItineraryCard(itinerary2, 2, costBreakdown2!)}
+            </div>
+
+            {selectedItinerary && (
+              <div className="flex gap-4 mb-6">
+                <AnimatedButton
+                  variant="outline"
+                  onClick={() => {
+                    setComparing(false);
+                    setCurrentDay(1);
+                  }}
+                  className="flex-1"
+                >
+                  View Full Details
+                </AnimatedButton>
+                <AnimatedButton
+                  onClick={saveTrip}
+                  className="flex-1"
+                  disabled={loading}
+                >
+                  {loading ? 'Saving...' : 'Save Selected Trip'}
+                </AnimatedButton>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Detailed View - Only show when not comparing */}
+        {!comparing && (
+          <>
 
         {/* Destination Image */}
         {currentItinerary.destination_image && (
@@ -466,7 +603,7 @@ export function ItineraryPage() {
         </GlossyCard>
 
         {/* Alternate Itinerary */}
-        {!comparing && !itinerary2 && (
+        {!itinerary2 && (
           <GlossyCard className="p-6 mb-6">
             <p className="text-white mb-4">Would you like to see an alternate itinerary?</p>
             <div className="flex gap-3">
@@ -499,6 +636,8 @@ export function ItineraryPage() {
         >
           {loading ? 'Saving...' : 'Save This Trip'}
         </AnimatedButton>
+        </>
+        )}
       </div>
 
       <Modal
