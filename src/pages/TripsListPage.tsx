@@ -5,6 +5,7 @@ import { GlossyCard } from '../components/GlossyCard';
 import { AnimatedButton } from '../components/AnimatedButton';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Toast, ToastProps } from '../components/Toast';
+import { Modal } from '../components/Modal';
 import { supabase, Trip } from '../lib/supabase';
 import { useAuth } from '../lib/auth-context';
 
@@ -14,6 +15,11 @@ export function TripsListPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<ToastProps | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ show: boolean; trip: Trip | null }>({
+    show: false,
+    trip: null,
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadTrips();
@@ -55,13 +61,23 @@ export function TripsListPage() {
     }
   };
 
-  const handleDeleteTrip = async (tripId: string) => {
+  const handleDeleteTrip = async () => {
+    if (!deleteConfirmation.trip || !user) return;
+
+    setIsDeleting(true);
     try {
-      const { error } = await supabase.from('trips').delete().eq('id', tripId);
+      const { error } = await supabase
+        .from('trips')
+        .delete()
+        .eq('id', deleteConfirmation.trip.id)
+        .eq('user_id', user.id);
+
       if (error) throw error;
-      setTrips(trips.filter((t) => t.id !== tripId));
+
+      setTrips(trips.filter((t) => t.id !== deleteConfirmation.trip!.id));
+      setDeleteConfirmation({ show: false, trip: null });
       setToast({
-        message: 'Trip deleted',
+        message: 'Trip deleted successfully',
         type: 'success',
         onClose: () => setToast(null),
       });
@@ -71,6 +87,8 @@ export function TripsListPage() {
         type: 'error',
         onClose: () => setToast(null),
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -167,7 +185,7 @@ export function TripsListPage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteTrip(trip.id);
+                      setDeleteConfirmation({ show: true, trip });
                     }}
                     className="flex-1 px-3 py-2 rounded-lg bg-error/20 hover:bg-error/30 text-error text-sm font-medium transition-colors"
                   >
@@ -181,6 +199,45 @@ export function TripsListPage() {
       </div>
 
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+
+      <Modal
+        isOpen={deleteConfirmation.show}
+        onClose={() => !isDeleting && setDeleteConfirmation({ show: false, trip: null })}
+        title="Delete Trip"
+      >
+        {deleteConfirmation.trip && (
+          <div className="space-y-4">
+            <p className="text-white/80">
+              Are you sure you want to delete this trip? This action cannot be undone.
+            </p>
+            <div className="bg-white/5 rounded-lg p-4 space-y-2">
+              <p className="text-white font-semibold">
+                {deleteConfirmation.trip.destinations.join(' → ')}
+              </p>
+              <p className="text-white/60 text-sm">
+                {new Date(deleteConfirmation.trip.travel_start_date).toLocaleDateString()} -{' '}
+                {new Date(deleteConfirmation.trip.travel_end_date).toLocaleDateString()}
+              </p>
+            </div>
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={() => setDeleteConfirmation({ show: false, trip: null })}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteTrip}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2 rounded-lg bg-error hover:bg-error/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Trip'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
