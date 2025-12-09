@@ -140,8 +140,10 @@ export function ItineraryPage() {
     }
   };
 
-  const saveTrip = async () => {
-    if (!selectedItinerary) {
+  const saveTrip = async (itineraryToSave?: 1 | 2) => {
+    const itineraryNumber = itineraryToSave || selectedItinerary;
+
+    if (!itineraryNumber) {
       setToast({
         message: 'Please select an itinerary before saving',
         type: 'error',
@@ -154,7 +156,7 @@ export function ItineraryPage() {
 
     setLoading(true);
     try {
-      const selectedVersion = selectedItinerary === 1 ? itinerary1 : itinerary2;
+      const selectedVersion = itineraryNumber === 1 ? itinerary1 : itinerary2;
       if (!selectedVersion) throw new Error('No itinerary selected');
 
       let savedTripId: string;
@@ -194,14 +196,14 @@ export function ItineraryPage() {
             total_cost: costBreakdownSelected.total,
             cost_breakdown: costBreakdownSelected,
             is_selected: true,
-            version_number: selectedItinerary,
+            version_number: itineraryNumber,
           })
           .select()
           .single();
 
         if (itineraryError) throw itineraryError;
 
-        if (itinerary2 && selectedItinerary === 2 && itinerary1) {
+        if (itinerary2 && itineraryNumber === 2 && itinerary1) {
           const costBreakdown1 = calculateTotalCost(itinerary1.flights, itinerary1.hotels, trip.number_of_travelers);
           await supabase.from('itineraries').insert({
             trip_id: savedTripId,
@@ -211,7 +213,7 @@ export function ItineraryPage() {
             is_selected: false,
             version_number: 1,
           });
-        } else if (itinerary2 && selectedItinerary === 1) {
+        } else if (itinerary2 && itineraryNumber === 1) {
           const costBreakdown2 = calculateTotalCost(itinerary2.flights, itinerary2.hotels, trip.number_of_travelers);
           await supabase.from('itineraries').insert({
             trip_id: savedTripId,
@@ -240,7 +242,7 @@ export function ItineraryPage() {
           .from('itineraries')
           .update({ is_selected: true })
           .eq('trip_id', tripId)
-          .eq('version_number', selectedItinerary);
+          .eq('version_number', itineraryNumber);
 
         for (const [day, noteContent] of Object.entries(notes)) {
           if (noteContent) {
@@ -694,10 +696,7 @@ export function ItineraryPage() {
             <div className="flex gap-3">
               <AnimatedButton
                 variant="outline"
-                onClick={() => {
-                  setSelectedItinerary(1);
-                  saveTrip();
-                }}
+                onClick={() => saveTrip(1)}
                 className="flex-1"
                 disabled={loading}
               >
