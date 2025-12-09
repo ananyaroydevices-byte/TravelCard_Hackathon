@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plane } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
 import { GlossyCard } from '../components/GlossyCard';
 import { AnimatedButton } from '../components/AnimatedButton';
@@ -57,13 +56,14 @@ export function SigninPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-teal-800 flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md animate-slide-in">
         <GlossyCard className="p-8">
-          <div className="flex justify-center mb-8">
-            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-primary to-accent">
-              <Plane className="text-white" size={32} />
-            </div>
+          <div className="flex justify-center mb-6">
+            <img
+              src="/journeygenius_logo.jpeg"
+              alt="JourneyGenius Logo"
+              className="w-64 h-auto"
+            />
           </div>
 
-          <h1 className="text-3xl font-bold text-white text-center mb-2">TravelCard</h1>
           <p className="text-white/60 text-center mb-8">Welcome back!</p>
 
           <form onSubmit={handleSignin} className="space-y-4">
