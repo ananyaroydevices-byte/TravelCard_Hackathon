@@ -314,6 +314,7 @@ export async function searchActivities(
     const data: TavilySearchResult = await response.json();
 
     const activities: Activity[] = [];
+    const usedActivityNames = new Set<string>();
 
     if (mandatoryActivities.length > 0) {
       mandatoryActivities.forEach((activityName, idx) => {
@@ -323,54 +324,64 @@ export async function searchActivities(
           description: `Experience ${activityName}`,
           duration: purpose === 'Business' ? '2-3 hours' : '2-4 hours',
         });
+        usedActivityNames.add(activityName.toLowerCase());
+      });
+    }
+
+    if (data.results && data.results.length > 0) {
+      data.results.forEach((result) => {
+        if (activities.length < targetCount) {
+          const activityName = extractActivityName(result.title, city);
+          const normalizedName = activityName.toLowerCase();
+
+          if (!usedActivityNames.has(normalizedName)) {
+            const activityIdx = activities.length;
+            activities.push({
+              time: generateActivityTime(activityIdx, purpose),
+              activity: activityName,
+              description: result.content.substring(0, 120) + '...',
+              duration: purpose === 'Business' ? '1-2 hours' : '2-3 hours',
+            });
+            usedActivityNames.add(normalizedName);
+          }
+        }
       });
     }
 
     const defaultActivities = getDefaultActivities(city, purpose);
 
-    if (data.results && data.results.length > 0) {
-      data.results.forEach((result, idx) => {
-        if (activities.length < targetCount) {
-          const activityName = extractActivityName(result.title, city);
-          const activityIdx = activities.length;
+    for (const defaultActivity of defaultActivities) {
+      if (activities.length >= targetCount) break;
 
-          activities.push({
-            time: generateActivityTime(activityIdx, purpose),
-            activity: activityName,
-            description: result.content.substring(0, 120) + '...',
-            duration: purpose === 'Business' ? '1-2 hours' : '2-3 hours',
-          });
-        }
-      });
+      const normalizedName = defaultActivity.activity.toLowerCase();
+      if (!usedActivityNames.has(normalizedName)) {
+        activities.push({
+          ...defaultActivity,
+          time: generateActivityTime(activities.length, purpose),
+        });
+        usedActivityNames.add(normalizedName);
+      }
     }
 
-    while (activities.length < targetCount) {
-      const defaultActivityIdx = activities.length - mandatoryActivities.length;
-      const defaultActivity = defaultActivities[defaultActivityIdx % defaultActivities.length];
+    const mealActivities = generateMealActivities(city, purpose);
+    for (const mealActivity of mealActivities) {
+      if (activities.length >= targetCount) break;
 
-      const activityWithTime = {
-        ...defaultActivity,
-        time: generateActivityTime(activities.length, purpose),
-      };
-
-      activities.push(activityWithTime);
+      const normalizedName = mealActivity.activity.toLowerCase();
+      if (!usedActivityNames.has(normalizedName)) {
+        activities.push({
+          ...mealActivity,
+          time: generateActivityTime(activities.length, purpose),
+        });
+        usedActivityNames.add(normalizedName);
+      }
     }
 
     return activities;
   } catch (error) {
     console.error('Error searching activities:', error);
     const defaultActivities = getDefaultActivities(city, purpose);
-    const activities: Activity[] = [];
-
-    while (activities.length < targetCount) {
-      const defaultActivity = defaultActivities[activities.length % defaultActivities.length];
-      activities.push({
-        ...defaultActivity,
-        time: generateActivityTime(activities.length, purpose),
-      });
-    }
-
-    return activities;
+    return defaultActivities.slice(0, Math.min(targetCount, defaultActivities.length));
   }
 }
 
@@ -442,6 +453,9 @@ function getDefaultActivities(city: string, purpose: string): Activity[] {
       { time: '4:00 PM', activity: 'Seine River Cruise', description: 'Relaxing boat tour past historic monuments', duration: '1-2 hours' },
       { time: '6:00 PM', activity: 'Montmartre Walk', description: 'Explore the artistic neighborhood and Sacré-Cœur', duration: '2 hours' },
       { time: '7:30 PM', activity: 'French Dinner Experience', description: 'Authentic Parisian cuisine at a local bistro', duration: '2 hours' },
+      { time: '10:00 AM', activity: 'Musée d\'Orsay', description: 'Impressionist and post-impressionist masterpieces', duration: '2-3 hours' },
+      { time: '3:00 PM', activity: 'Arc de Triomphe', description: 'Historical monument and Champs-Élysées views', duration: '1-2 hours' },
+      { time: '5:00 PM', activity: 'Latin Quarter Stroll', description: 'Charming streets, cafés, and bookstores', duration: '2 hours' },
     ],
     Rome: [
       { time: '9:00 AM', activity: 'Colosseum', description: 'Ancient Roman amphitheater and gladiator arena', duration: '2-3 hours' },
@@ -449,6 +463,9 @@ function getDefaultActivities(city: string, purpose: string): Activity[] {
       { time: '4:00 PM', activity: 'Trevi Fountain', description: 'Famous baroque fountain and coin toss tradition', duration: '1 hour' },
       { time: '6:00 PM', activity: 'Roman Forum', description: 'Walk through ancient Roman ruins', duration: '2 hours' },
       { time: '7:30 PM', activity: 'Italian Dinner', description: 'Traditional Roman pasta and wine', duration: '2 hours' },
+      { time: '10:00 AM', activity: 'Pantheon', description: 'Ancient Roman temple with impressive dome', duration: '1 hour' },
+      { time: '3:00 PM', activity: 'Spanish Steps', description: 'Historic stairway and shopping district', duration: '1-2 hours' },
+      { time: '5:00 PM', activity: 'Trastevere Walk', description: 'Bohemian neighborhood with cobblestone streets', duration: '2 hours' },
     ],
     London: [
       { time: '9:00 AM', activity: 'Tower of London', description: 'Historic castle and Crown Jewels', duration: '2-3 hours' },
@@ -456,6 +473,9 @@ function getDefaultActivities(city: string, purpose: string): Activity[] {
       { time: '4:00 PM', activity: 'London Eye', description: 'Giant observation wheel with city views', duration: '1 hour' },
       { time: '6:00 PM', activity: 'Covent Garden', description: 'Shopping, street performers, and dining', duration: '2 hours' },
       { time: '7:30 PM', activity: 'West End Theatre', description: 'World-class theatrical performance', duration: '2-3 hours' },
+      { time: '10:00 AM', activity: 'Buckingham Palace', description: 'Royal residence and Changing of the Guard', duration: '1-2 hours' },
+      { time: '3:00 PM', activity: 'Westminster Abbey', description: 'Gothic church with royal history', duration: '1-2 hours' },
+      { time: '5:00 PM', activity: 'Borough Market', description: 'Historic food market with diverse offerings', duration: '1-2 hours' },
     ],
     Tokyo: [
       { time: '9:00 AM', activity: 'Senso-ji Temple', description: 'Ancient Buddhist temple in Asakusa', duration: '2 hours' },
@@ -463,6 +483,9 @@ function getDefaultActivities(city: string, purpose: string): Activity[] {
       { time: '4:00 PM', activity: 'Shibuya Crossing', description: 'Iconic intersection and shopping district', duration: '2 hours' },
       { time: '6:00 PM', activity: 'Harajuku District', description: 'Trendy fashion and youth culture hub', duration: '2 hours' },
       { time: '7:30 PM', activity: 'Sushi Dinner', description: 'Authentic Japanese sushi experience', duration: '2 hours' },
+      { time: '10:00 AM', activity: 'Meiji Shrine', description: 'Peaceful Shinto shrine in forested grounds', duration: '1-2 hours' },
+      { time: '3:00 PM', activity: 'Akihabara District', description: 'Electronics and anime culture center', duration: '2 hours' },
+      { time: '5:00 PM', activity: 'Tsukiji Outer Market', description: 'Fresh seafood and street food', duration: '1-2 hours' },
     ],
   };
 
@@ -472,5 +495,26 @@ function getDefaultActivities(city: string, purpose: string): Activity[] {
     { time: '4:00 PM', activity: 'Local Market', description: 'Browse local crafts, food, and souvenirs', duration: '2 hours' },
     { time: '6:00 PM', activity: `${city} Waterfront`, description: 'Scenic views and waterfront promenade', duration: '1-2 hours' },
     { time: '7:30 PM', activity: 'Local Cuisine Experience', description: 'Taste authentic regional specialties', duration: '2 hours' },
+    { time: '10:00 AM', activity: `${city} Art Gallery`, description: 'Contemporary and traditional art collections', duration: '2 hours' },
+    { time: '3:00 PM', activity: `${city} Park`, description: 'Relax in green spaces and gardens', duration: '1-2 hours' },
+    { time: '5:00 PM', activity: `${city} Shopping District`, description: 'Browse local boutiques and stores', duration: '2 hours' },
+  ];
+}
+
+function generateMealActivities(city: string, purpose: string): Activity[] {
+  if (purpose === 'Business') {
+    return [
+      { time: '8:00 AM', activity: 'Business Breakfast Meeting', description: 'Morning networking over coffee and breakfast', duration: '1 hour' },
+      { time: '12:00 PM', activity: 'Executive Lunch', description: 'Fine dining with business associates', duration: '1-2 hours' },
+      { time: '6:00 PM', activity: 'Corporate Dinner', description: 'Evening meal at upscale restaurant', duration: '2 hours' },
+    ];
+  }
+
+  return [
+    { time: '8:00 AM', activity: `${city} Breakfast Spot`, description: 'Start your day with local breakfast specialties', duration: '1 hour' },
+    { time: '12:00 PM', activity: `${city} Lunch Restaurant`, description: 'Enjoy midday meal at popular local eatery', duration: '1-2 hours' },
+    { time: '7:00 PM', activity: `${city} Dinner Experience`, description: 'Evening dining at renowned restaurant', duration: '2 hours' },
+    { time: '3:00 PM', activity: `${city} Café Break`, description: 'Afternoon coffee or tea at charming café', duration: '30 min - 1 hour' },
+    { time: '9:00 PM', activity: `${city} Dessert & Nightcap`, description: 'Sweet treats and drinks to end the day', duration: '1 hour' },
   ];
 }
