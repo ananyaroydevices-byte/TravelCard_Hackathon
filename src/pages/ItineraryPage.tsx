@@ -327,9 +327,14 @@ export function ItineraryPage() {
                     Departure: {flight.departure_time} • Arrival: {flight.arrival_time}
                   </p>
                   <p className="text-white/60 text-xs">Duration: {flight.duration}</p>
-                  <p className="text-primary text-sm font-semibold mt-1">
-                    ${Math.round(flight.price_per_person * trip.number_of_travelers)} for {trip.number_of_travelers}
-                  </p>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-primary text-sm font-semibold">
+                      ${Math.round(flight.price_per_person)}/person
+                    </p>
+                    <p className="text-white/70 text-xs">
+                      Total: ${Math.round(flight.price_per_person * trip.number_of_travelers)} for {trip.number_of_travelers} traveler{trip.number_of_travelers > 1 ? 's' : ''}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
