@@ -78,7 +78,9 @@ export function ItineraryPage() {
         tripData.traveler_type,
         tripData.number_of_travelers,
         tripData.origin_city,
-        tripData.mandatory_activities
+        tripData.mandatory_activities,
+        tripData.traveler_images || [],
+        user.id
       );
 
       setItinerary1(itiner);
@@ -94,7 +96,7 @@ export function ItineraryPage() {
   };
 
   const generateAlternateItinerary = async () => {
-    if (!trip) return;
+    if (!trip || !user) return;
 
     setLoading(true);
     try {
@@ -106,7 +108,9 @@ export function ItineraryPage() {
         trip.traveler_type,
         trip.number_of_travelers,
         trip.origin_city,
-        trip.mandatory_activities
+        trip.mandatory_activities,
+        trip.traveler_images || [],
+        user.id
       );
 
       setItinerary2(itiner);
@@ -337,9 +341,13 @@ export function ItineraryPage() {
   };
 
   if (loading && !itinerary1) {
+    const loadingText = trip?.traveler_images && trip.traveler_images.length > 0
+      ? "Creating your personalized destination image..."
+      : "Generating your itinerary...";
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-teal-800 flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Generating your itinerary..." />
+        <LoadingSpinner size="lg" text={loadingText} />
       </div>
     );
   }
@@ -520,12 +528,17 @@ export function ItineraryPage() {
 
         {/* Destination Image */}
         {currentItinerary.destination_image && (
-          <GlossyCard className="p-0 mb-6 overflow-hidden h-64">
+          <GlossyCard className="p-0 mb-6 overflow-hidden h-64 relative">
             <img
               src={currentItinerary.destination_image}
               alt="destination"
               className="w-full h-full object-cover"
             />
+            {currentItinerary.is_ai_generated_image && (
+              <div className="absolute top-4 right-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg backdrop-blur-sm">
+                AI Personalized
+              </div>
+            )}
           </GlossyCard>
         )}
 

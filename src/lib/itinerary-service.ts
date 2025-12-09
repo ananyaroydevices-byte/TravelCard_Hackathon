@@ -1,6 +1,7 @@
 import { ItineraryData, Flight, Hotel, DayItinerary, Activity } from './supabase';
 import { searchFlights, searchHotels, searchActivities } from './search-service';
 import { fetchDestinationImage } from './image-service';
+import { generatePersonalizedDestinationImage } from './gemini-service';
 
 export async function generateItinerary(
   destinations: string[],
@@ -10,7 +11,9 @@ export async function generateItinerary(
   travelerType: string,
   numberOfTravelers: number,
   originCity: string,
-  mandatoryActivities: Record<string, string[]>
+  mandatoryActivities: Record<string, string[]>,
+  travelerImages: string[] = [],
+  userId?: string
 ): Promise<ItineraryData> {
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -105,10 +108,32 @@ export async function generateItinerary(
     }
   }
 
-  const destinationImage = await fetchDestinationImage(destinations[0]);
+  let destinationImage = '';
+  let isAiGenerated = false;
+  let aiMetadata = {};
+
+  if (travelerImages.length > 0 && userId) {
+    const aiResult = await generatePersonalizedDestinationImage(
+      travelerImages[0],
+      destinations[0],
+      userId
+    );
+
+    if (aiResult.url) {
+      destinationImage = aiResult.url;
+      isAiGenerated = aiResult.isAiGenerated;
+      aiMetadata = aiResult.metadata;
+    } else {
+      destinationImage = await fetchDestinationImage(destinations[0]);
+    }
+  } else {
+    destinationImage = await fetchDestinationImage(destinations[0]);
+  }
 
   return {
     destination_image: destinationImage,
+    is_ai_generated_image: isAiGenerated,
+    ai_image_metadata: aiMetadata,
     flights,
     hotels,
     days,

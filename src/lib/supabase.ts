@@ -46,6 +46,8 @@ export interface Itinerary {
 
 export interface ItineraryData {
   destination_image: string;
+  is_ai_generated_image?: boolean;
+  ai_image_metadata?: any;
   flights: Flight[];
   hotels: Hotel[];
   days: DayItinerary[];

@@ -8,6 +8,7 @@ import { Select } from '../components/Select';
 import { Toast, ToastProps } from '../components/Toast';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { useAuth } from '../lib/auth-context';
+import { supabase } from '../lib/supabase';
 
 const DESTINATION_REGIONS: Record<string, string[]> = {
   Europe: ['Paris', 'London', 'Rome', 'Barcelona', 'Amsterdam', 'Vienna', 'Prague', 'Athens', 'Venice', 'Berlin'],
@@ -129,6 +130,31 @@ export function TripDetailsPage() {
 
     setLoading(true);
     try {
+      const uploadedImageUrls: string[] = [];
+
+      if (travelerImages.length > 0) {
+        for (const file of travelerImages) {
+          const fileName = `${user.id}/${Date.now()}-${file.name}`;
+
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('traveler-photos')
+            .upload(fileName, file, {
+              contentType: file.type,
+              upsert: false
+            });
+
+          if (uploadError) {
+            throw new Error(`Failed to upload image: ${uploadError.message}`);
+          }
+
+          const { data: urlData } = supabase.storage
+            .from('traveler-photos')
+            .getPublicUrl(uploadData.path);
+
+          uploadedImageUrls.push(urlData.publicUrl);
+        }
+      }
+
       navigate('/itinerary/new', {
         state: {
           tripData: {
@@ -141,13 +167,13 @@ export function TripDetailsPage() {
             number_of_travelers: parseInt(numberOfTravelers),
             origin_city: originCity,
             mandatory_activities: mandatoryActivities,
-            traveler_images: previewUrls,
+            traveler_images: uploadedImageUrls,
           },
         },
       });
     } catch (error: any) {
       setToast({
-        message: error.message || 'Failed to navigate',
+        message: error.message || 'Failed to upload images',
         type: 'error',
         onClose: () => setToast(null),
       });
