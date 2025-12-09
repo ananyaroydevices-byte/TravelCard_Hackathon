@@ -261,7 +261,7 @@ export function ItineraryPage() {
   if (!trip || !itinerary1) return null;
 
   const currentItinerary = selectedItinerary === 2 && itinerary2 ? itinerary2 : itinerary1;
-  const costBreakdown = selectedItinerary === 2 && itinerary2 ? { flights_total: 5000, hotels_total: 3000, activities_total: 2000, total: 10000 } : { flights_total: 5000, hotels_total: 3000, activities_total: 2000, total: 10000 };
+  const costBreakdown = calculateTotalCost(currentItinerary.flights, currentItinerary.hotels, trip.number_of_travelers);
   const dayItinerary = currentItinerary.days[currentDay - 1];
 
   return (
