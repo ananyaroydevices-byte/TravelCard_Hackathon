@@ -92,7 +92,6 @@ export interface Activity {
 export interface CostBreakdown {
   flights_total: number;
   hotels_total: number;
-  activities_total: number;
   total: number;
 }
 

@@ -98,12 +98,10 @@ export function calculateTotalCost(
 ) {
   const flightsCost = flights.reduce((sum, f) => sum + f.price_per_person * numberOfTravelers, 0);
   const hotelsCost = hotels.reduce((sum, h) => sum + h.total_price, 0);
-  const activitiesCost = hotels.length * 150 * numberOfTravelers;
 
   return {
     flights_total: Math.round(flightsCost),
     hotels_total: Math.round(hotelsCost),
-    activities_total: Math.round(activitiesCost),
-    total: Math.round(flightsCost + hotelsCost + activitiesCost),
+    total: Math.round(flightsCost + hotelsCost),
   };
 }

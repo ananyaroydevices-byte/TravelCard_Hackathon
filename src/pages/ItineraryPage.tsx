@@ -451,18 +451,17 @@ export function ItineraryPage() {
               <span>Flights</span>
               <span>${costBreakdown.flights_total}</span>
             </div>
-            <div className="flex justify-between text-white/70">
+            <div className="flex justify-between text-white/70 pb-2 border-b border-white/10">
               <span>Hotels</span>
               <span>${costBreakdown.hotels_total}</span>
-            </div>
-            <div className="flex justify-between text-white/70 pb-2 border-b border-white/10">
-              <span>Activities</span>
-              <span>${costBreakdown.activities_total}</span>
             </div>
             <div className="flex justify-between text-white font-bold text-lg pt-2">
               <span>Total</span>
               <span>${costBreakdown.total}</span>
             </div>
+            <p className="text-white/50 text-sm mt-4 pt-4 border-t border-white/10">
+              Note: Activities and intra-city travel costs are not included in this cost estimate.
+            </p>
           </div>
         </GlossyCard>
 

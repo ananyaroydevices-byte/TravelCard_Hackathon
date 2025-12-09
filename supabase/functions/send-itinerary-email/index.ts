@@ -47,7 +47,6 @@ interface EmailRequest {
   costBreakdown: {
     flights_total: number;
     hotels_total: number;
-    activities_total: number;
     total: number;
   };
 }
@@ -181,15 +180,14 @@ function generateEmailHTML(data: EmailRequest): string {
           <td style="padding: 8px 0; color: #4b5563;">Hotels:</td>
           <td style="padding: 8px 0; text-align: right; font-weight: 600;">$${costBreakdown.hotels_total}</td>
         </tr>
-        <tr>
-          <td style="padding: 8px 0; color: #4b5563;">Activities:</td>
-          <td style="padding: 8px 0; text-align: right; font-weight: 600;">$${costBreakdown.activities_total}</td>
-        </tr>
         <tr style="border-top: 2px solid #0d9488;">
           <td style="padding: 12px 0; color: #1f2937; font-size: 18px; font-weight: 700;">Total:</td>
           <td style="padding: 12px 0; text-align: right; color: #0d9488; font-size: 18px; font-weight: 700;">$${costBreakdown.total}</td>
         </tr>
       </table>
+      <p style="margin: 15px 0 0 0; padding-top: 15px; border-top: 1px solid #cbd5e1; color: #6b7280; font-size: 14px;">
+        Note: Activities and intra-city travel costs are not included in this cost estimate.
+      </p>
     </div>
 
     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 14px;">
