@@ -504,7 +504,7 @@ export function ItineraryPage() {
                   View Full Details
                 </AnimatedButton>
                 <AnimatedButton
-                  onClick={saveTrip}
+                  onClick={() => saveTrip()}
                   className="flex-1"
                   disabled={loading}
                 >
