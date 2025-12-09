@@ -44,10 +44,9 @@ export function SignupPage() {
         message: 'Account created successfully! Welcome to TravelCard.',
         type: 'success',
         duration: 2000,
-        onClose: () => {
-          navigate('/trip-details');
-        },
+        onClose: () => setToast(null),
       });
+      navigate('/trip-details');
     } catch (error: any) {
       setToast({
         message: error.message || 'Failed to create account. Please try again.',
@@ -143,18 +142,7 @@ export function SignupPage() {
         </GlossyCard>
       </div>
 
-      {toast && (
-        <Toast
-          {...toast}
-          onClose={() => {
-            if (toast.type === 'success') {
-              toast.onClose();
-            } else {
-              setToast(null);
-            }
-          }}
-        />
-      )}
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
     </div>
   );
 }

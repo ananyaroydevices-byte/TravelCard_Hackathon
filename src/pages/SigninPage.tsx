@@ -39,10 +39,9 @@ export function SigninPage() {
         message: 'Signed in successfully!',
         type: 'success',
         duration: 2000,
-        onClose: () => {
-          navigate('/trips');
-        },
+        onClose: () => setToast(null),
       });
+      navigate('/trips');
     } catch (error: any) {
       setToast({
         message: error.message || 'Failed to sign in. Please check your credentials.',
