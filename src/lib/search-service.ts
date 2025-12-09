@@ -1,4 +1,5 @@
 import { Flight, Hotel, Activity } from './supabase';
+import { searchAmadeusFlights, getIATACode } from './amadeus-service';
 
 const TAVILY_API_KEY = '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';
 
@@ -10,31 +11,61 @@ interface TavilySearchResult {
   }>;
 }
 
+const cityToIATAMap: Record<string, string> = {
+  'New York': 'NYC',
+  'Los Angeles': 'LAX',
+  'Chicago': 'CHI',
+  'San Francisco': 'SFO',
+  'Miami': 'MIA',
+  'Boston': 'BOS',
+  'Seattle': 'SEA',
+  'London': 'LON',
+  'Paris': 'PAR',
+  'Rome': 'ROM',
+  'Tokyo': 'TYO',
+  'Dubai': 'DXB',
+  'Singapore': 'SIN',
+  'Hong Kong': 'HKG',
+  'Sydney': 'SYD',
+  'Barcelona': 'BCN',
+  'Amsterdam': 'AMS',
+  'Berlin': 'BER',
+  'Madrid': 'MAD',
+  'Toronto': 'YTO',
+};
+
+async function getIATACodeForCity(cityName: string): Promise<string> {
+  if (cityToIATAMap[cityName]) {
+    return cityToIATAMap[cityName];
+  }
+
+  const code = await getIATACode(cityName);
+  if (code) {
+    cityToIATAMap[cityName] = code;
+    return code;
+  }
+
+  return cityName.substring(0, 3).toUpperCase();
+}
+
 export async function searchFlights(
   origin: string,
   destination: string,
   date: string
 ): Promise<Flight | null> {
   try {
-    const query = `flights from ${origin} to ${destination} in ${new Date(date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} average prices airlines`;
+    const originCode = await getIATACodeForCity(origin);
+    const destCode = await getIATACodeForCity(destination);
 
-    const response = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        api_key: TAVILY_API_KEY,
-        query,
-        max_results: 5,
-      }),
-    });
+    const amadeusResult = await searchAmadeusFlights(originCode, destCode, date, 1);
 
-    if (!response.ok) {
-      throw new Error('Failed to search flights');
+    if (amadeusResult) {
+      return {
+        ...amadeusResult,
+        from: origin,
+        to: destination,
+      };
     }
-
-    const data: TavilySearchResult = await response.json();
 
     const airlines = ['Emirates', 'Qatar Airways', 'Lufthansa', 'Air France', 'British Airways', 'United Airlines', 'Delta', 'Singapore Airlines', 'Turkish Airlines'];
     const randomAirline = airlines[Math.floor(Math.random() * airlines.length)];
