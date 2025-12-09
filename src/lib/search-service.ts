@@ -264,11 +264,31 @@ function getCityAveragePrices(city: string, purpose: string): { min: number; max
   }
 }
 
+function generateActivityTime(activityIndex: number, purpose: string): string {
+  if (purpose === 'Business') {
+    const businessHours = ['9:00 AM', '11:00 AM', '2:00 PM', '4:00 PM'];
+    return businessHours[activityIndex % businessHours.length];
+  }
+
+  const morningHours = ['9:00 AM', '10:30 AM', '12:00 PM'];
+  const afternoonHours = ['2:00 PM', '4:00 PM', '6:00 PM'];
+  const eveningHours = ['7:30 PM'];
+
+  if (activityIndex < 3) {
+    return morningHours[activityIndex];
+  } else if (activityIndex < 6) {
+    return afternoonHours[activityIndex - 3];
+  } else {
+    return eveningHours[(activityIndex - 6) % eveningHours.length];
+  }
+}
+
 export async function searchActivities(
   city: string,
   purpose: string,
   travelerType: string,
-  mandatoryActivities: string[] = []
+  mandatoryActivities: string[] = [],
+  targetCount: number = 6
 ): Promise<Activity[]> {
   try {
     const query = purpose === 'Business'
@@ -298,48 +318,59 @@ export async function searchActivities(
     if (mandatoryActivities.length > 0) {
       mandatoryActivities.forEach((activityName, idx) => {
         activities.push({
-          time: `${9 + idx * 2}:00 AM`,
+          time: generateActivityTime(idx, purpose),
           activity: activityName,
           description: `Experience ${activityName}`,
-          duration: '2-3 hours',
+          duration: purpose === 'Business' ? '2-3 hours' : '2-4 hours',
         });
       });
     }
 
     const defaultActivities = getDefaultActivities(city, purpose);
-    const startIdx = mandatoryActivities.length;
 
     if (data.results && data.results.length > 0) {
-      data.results.slice(0, 5).forEach((result, idx) => {
-        if (activities.length < 8) {
+      data.results.forEach((result, idx) => {
+        if (activities.length < targetCount) {
           const activityName = extractActivityName(result.title, city);
-          const time = startIdx + idx < 4
-            ? `${9 + (startIdx + idx) * 2}:00 AM`
-            : `${(startIdx + idx - 3) * 2}:00 PM`;
+          const activityIdx = activities.length;
 
           activities.push({
-            time,
+            time: generateActivityTime(activityIdx, purpose),
             activity: activityName,
-            description: result.content.substring(0, 100) + '...',
-            duration: '2-3 hours',
+            description: result.content.substring(0, 120) + '...',
+            duration: purpose === 'Business' ? '1-2 hours' : '2-3 hours',
           });
         }
       });
     }
 
-    while (activities.length < 6) {
-      const defaultActivity = defaultActivities[activities.length - mandatoryActivities.length];
-      if (defaultActivity) {
-        activities.push(defaultActivity);
-      } else {
-        break;
-      }
+    while (activities.length < targetCount) {
+      const defaultActivityIdx = activities.length - mandatoryActivities.length;
+      const defaultActivity = defaultActivities[defaultActivityIdx % defaultActivities.length];
+
+      const activityWithTime = {
+        ...defaultActivity,
+        time: generateActivityTime(activities.length, purpose),
+      };
+
+      activities.push(activityWithTime);
     }
 
     return activities;
   } catch (error) {
     console.error('Error searching activities:', error);
-    return getDefaultActivities(city, purpose);
+    const defaultActivities = getDefaultActivities(city, purpose);
+    const activities: Activity[] = [];
+
+    while (activities.length < targetCount) {
+      const defaultActivity = defaultActivities[activities.length % defaultActivities.length];
+      activities.push({
+        ...defaultActivity,
+        time: generateActivityTime(activities.length, purpose),
+      });
+    }
+
+    return activities;
   }
 }
 
@@ -380,44 +411,66 @@ function getDefaultActivities(city: string, purpose: string): Activity[] {
       {
         time: '9:00 AM',
         activity: `${city} Business District Tour`,
-        description: 'Explore the main business area',
+        description: 'Explore the main business area and key commercial zones',
         duration: '2 hours',
+      },
+      {
+        time: '11:00 AM',
+        activity: 'Networking Lunch',
+        description: 'Meet with local business professionals',
+        duration: '1-2 hours',
       },
       {
         time: '2:00 PM',
         activity: 'Co-working Space Visit',
-        description: 'Network with local professionals',
-        duration: '3 hours',
+        description: 'Experience modern work environment and network',
+        duration: '2-3 hours',
+      },
+      {
+        time: '4:00 PM',
+        activity: 'Business Conference Center',
+        description: 'Visit local conference venues and facilities',
+        duration: '1-2 hours',
       },
     ];
   }
 
   const cityActivities: Record<string, Activity[]> = {
     Paris: [
-      { time: '9:00 AM', activity: 'Eiffel Tower', description: 'Visit the iconic landmark', duration: '2-3 hours' },
-      { time: '12:00 PM', activity: 'Louvre Museum', description: 'Explore world-class art', duration: '3-4 hours' },
-      { time: '4:00 PM', activity: 'Seine River Cruise', description: 'Relaxing boat tour', duration: '1-2 hours' },
+      { time: '9:00 AM', activity: 'Eiffel Tower', description: 'Visit the iconic landmark and enjoy panoramic views', duration: '2-3 hours' },
+      { time: '12:00 PM', activity: 'Louvre Museum', description: 'Explore world-class art and see the Mona Lisa', duration: '3-4 hours' },
+      { time: '4:00 PM', activity: 'Seine River Cruise', description: 'Relaxing boat tour past historic monuments', duration: '1-2 hours' },
+      { time: '6:00 PM', activity: 'Montmartre Walk', description: 'Explore the artistic neighborhood and Sacré-Cœur', duration: '2 hours' },
+      { time: '7:30 PM', activity: 'French Dinner Experience', description: 'Authentic Parisian cuisine at a local bistro', duration: '2 hours' },
     ],
     Rome: [
-      { time: '9:00 AM', activity: 'Colosseum', description: 'Ancient Roman amphitheater', duration: '2-3 hours' },
-      { time: '12:00 PM', activity: 'Vatican Museums', description: 'Sistine Chapel visit', duration: '3-4 hours' },
-      { time: '4:00 PM', activity: 'Trevi Fountain', description: 'Famous baroque fountain', duration: '1 hour' },
+      { time: '9:00 AM', activity: 'Colosseum', description: 'Ancient Roman amphitheater and gladiator arena', duration: '2-3 hours' },
+      { time: '12:00 PM', activity: 'Vatican Museums', description: 'Sistine Chapel and St. Peters Basilica visit', duration: '3-4 hours' },
+      { time: '4:00 PM', activity: 'Trevi Fountain', description: 'Famous baroque fountain and coin toss tradition', duration: '1 hour' },
+      { time: '6:00 PM', activity: 'Roman Forum', description: 'Walk through ancient Roman ruins', duration: '2 hours' },
+      { time: '7:30 PM', activity: 'Italian Dinner', description: 'Traditional Roman pasta and wine', duration: '2 hours' },
     ],
     London: [
-      { time: '9:00 AM', activity: 'Tower of London', description: 'Historic castle', duration: '2-3 hours' },
-      { time: '12:00 PM', activity: 'British Museum', description: 'World history exhibits', duration: '3 hours' },
-      { time: '4:00 PM', activity: 'London Eye', description: 'Observation wheel ride', duration: '1 hour' },
+      { time: '9:00 AM', activity: 'Tower of London', description: 'Historic castle and Crown Jewels', duration: '2-3 hours' },
+      { time: '12:00 PM', activity: 'British Museum', description: 'World history and cultural exhibits', duration: '3 hours' },
+      { time: '4:00 PM', activity: 'London Eye', description: 'Giant observation wheel with city views', duration: '1 hour' },
+      { time: '6:00 PM', activity: 'Covent Garden', description: 'Shopping, street performers, and dining', duration: '2 hours' },
+      { time: '7:30 PM', activity: 'West End Theatre', description: 'World-class theatrical performance', duration: '2-3 hours' },
     ],
     Tokyo: [
-      { time: '9:00 AM', activity: 'Senso-ji Temple', description: 'Ancient Buddhist temple', duration: '2 hours' },
-      { time: '12:00 PM', activity: 'Tokyo Skytree', description: 'Panoramic city views', duration: '2 hours' },
-      { time: '4:00 PM', activity: 'Shibuya Crossing', description: 'Iconic intersection', duration: '1 hour' },
+      { time: '9:00 AM', activity: 'Senso-ji Temple', description: 'Ancient Buddhist temple in Asakusa', duration: '2 hours' },
+      { time: '12:00 PM', activity: 'Tokyo Skytree', description: 'Panoramic city views from observation deck', duration: '2 hours' },
+      { time: '4:00 PM', activity: 'Shibuya Crossing', description: 'Iconic intersection and shopping district', duration: '2 hours' },
+      { time: '6:00 PM', activity: 'Harajuku District', description: 'Trendy fashion and youth culture hub', duration: '2 hours' },
+      { time: '7:30 PM', activity: 'Sushi Dinner', description: 'Authentic Japanese sushi experience', duration: '2 hours' },
     ],
   };
 
   return cityActivities[city] || [
-    { time: '9:00 AM', activity: `${city} City Center`, description: 'Explore downtown area', duration: '2 hours' },
-    { time: '12:00 PM', activity: `${city} Museum`, description: 'Local history and culture', duration: '2 hours' },
-    { time: '4:00 PM', activity: 'Local Market', description: 'Shopping and dining', duration: '2 hours' },
+    { time: '9:00 AM', activity: `${city} City Center`, description: 'Explore the historic downtown area and main attractions', duration: '2-3 hours' },
+    { time: '12:00 PM', activity: `${city} Museum`, description: 'Discover local history, art, and culture', duration: '2-3 hours' },
+    { time: '4:00 PM', activity: 'Local Market', description: 'Browse local crafts, food, and souvenirs', duration: '2 hours' },
+    { time: '6:00 PM', activity: `${city} Waterfront`, description: 'Scenic views and waterfront promenade', duration: '1-2 hours' },
+    { time: '7:30 PM', activity: 'Local Cuisine Experience', description: 'Taste authentic regional specialties', duration: '2 hours' },
   ];
 }

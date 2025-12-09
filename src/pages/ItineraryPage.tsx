@@ -7,7 +7,6 @@ import { Textarea } from '../components/Textarea';
 import { Modal } from '../components/Modal';
 import { Toast, ToastProps } from '../components/Toast';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { MapMockup } from '../components/MapMockup';
 import { supabase, Trip, ItineraryData, CostBreakdown } from '../lib/supabase';
 import { generateItinerary, calculateTotalCost } from '../lib/itinerary-service';
 import { useAuth } from '../lib/auth-context';
@@ -659,12 +658,6 @@ export function ItineraryPage() {
               </button>
             </div>
           </div>
-        </GlossyCard>
-
-        {/* Map */}
-        <GlossyCard className="p-6 mb-6">
-          <h3 className="text-white font-bold mb-4">Trip Map</h3>
-          <MapMockup destinations={trip.destinations} />
         </GlossyCard>
 
         {/* Cost Breakdown */}
