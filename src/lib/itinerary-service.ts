@@ -14,13 +14,14 @@ export async function generateItinerary(
 ): Promise<ItineraryData> {
   const start = new Date(startDate);
   const end = new Date(endDate);
-  const daysCount = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const daysCount = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
   const flights: Flight[] = [];
   const hotels: Hotel[] = [];
   const days: DayItinerary[] = [];
 
-  const daysPerDestination = Math.max(1, Math.floor(daysCount / destinations.length));
+  const baseDaysPerDestination = Math.floor(daysCount / destinations.length);
+  const remainderDays = daysCount % destinations.length;
 
   let currentDate = new Date(startDate);
 
@@ -28,6 +29,8 @@ export async function generateItinerary(
     const destination = destinations[destIdx];
     const isFirstDest = destIdx === 0;
     const isLastDest = destIdx === destinations.length - 1;
+
+    const daysForThisDestination = baseDaysPerDestination + (destIdx < remainderDays ? 1 : 0);
 
     const flightOrigin = isFirstDest ? originCity : destinations[destIdx - 1];
     const arrivalDate = currentDate.toISOString().split('T')[0];
@@ -38,10 +41,11 @@ export async function generateItinerary(
     }
 
     const checkInDate = currentDate.toISOString().split('T')[0];
-    currentDate.setDate(currentDate.getDate() + daysPerDestination);
-    const checkOutDate = currentDate.toISOString().split('T')[0];
+    const checkOutDate = new Date(currentDate);
+    checkOutDate.setDate(checkOutDate.getDate() + daysForThisDestination);
+    const checkOutDateStr = checkOutDate.toISOString().split('T')[0];
 
-    const hotel = await searchHotels(destination, checkInDate, checkOutDate, purpose);
+    const hotel = await searchHotels(destination, checkInDate, checkOutDateStr, purpose);
     if (hotel) {
       hotels.push(hotel);
     }
@@ -54,7 +58,7 @@ export async function generateItinerary(
       ? 4
       : 6;
 
-    const totalActivitiesNeeded = idealActivitiesPerDay * daysPerDestination;
+    const totalActivitiesNeeded = idealActivitiesPerDay * daysForThisDestination;
     const cityActivities = await searchActivities(
       destination,
       purpose,
@@ -63,25 +67,20 @@ export async function generateItinerary(
       totalActivitiesNeeded
     );
 
-    const actualActivitiesPerDay = Math.min(
-      idealActivitiesPerDay,
-      Math.floor(cityActivities.length / daysPerDestination)
-    );
+    const actualActivitiesPerDay = cityActivities.length > 0
+      ? Math.min(idealActivitiesPerDay, Math.ceil(cityActivities.length / daysForThisDestination))
+      : idealActivitiesPerDay;
 
     const minActivitiesPerDay = purpose === 'Business' ? 2 : purpose === 'Staycation' ? 3 : 4;
     const finalActivitiesPerDay = Math.max(minActivitiesPerDay, actualActivitiesPerDay);
 
-    for (let dayIdx = 0; dayIdx < daysPerDestination; dayIdx++) {
+    for (let dayIdx = 0; dayIdx < daysForThisDestination; dayIdx++) {
       const dayDate = new Date(checkInDate);
       dayDate.setDate(dayDate.getDate() + dayIdx);
 
       const startIdx = dayIdx * finalActivitiesPerDay;
       const endIdx = Math.min(startIdx + finalActivitiesPerDay, cityActivities.length);
       const activitiesForDay = cityActivities.slice(startIdx, endIdx);
-
-      if (activitiesForDay.length === 0 && dayIdx > 0) {
-        continue;
-      }
 
       days.push({
         day: days.length + 1,
@@ -97,6 +96,8 @@ export async function generateItinerary(
         })),
       });
     }
+
+    currentDate.setDate(currentDate.getDate() + daysForThisDestination);
 
     if (isLastDest) {
       const returnFlight = await searchFlights(destination, originCity, endDate);
