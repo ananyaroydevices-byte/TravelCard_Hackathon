@@ -16,9 +16,9 @@ export async function fetchDestinationImage(destination: string): Promise<string
       return data.photos[0].src.large;
     }
 
-    return 'https://images.pexels.com/photos/1008155/pexels-photo-1008155.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop';
+    return '/image.png';
   } catch (error) {
     console.error('Error fetching destination image:', error);
-    return 'https://images.pexels.com/photos/1008155/pexels-photo-1008155.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop';
+    return '/image.png';
   }
 }
