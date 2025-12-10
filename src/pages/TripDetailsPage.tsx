@@ -438,7 +438,13 @@ export function TripDetailsPage() {
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       {loading && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <LoadingSpinner text="Generating your itinerary..." />
+          <LoadingSpinner
+            text={
+              travelerImages.length > 0
+                ? "Creating your personalized AI itinerary image..."
+                : "Generating your itinerary..."
+            }
+          />
         </div>
       )}
     </div>

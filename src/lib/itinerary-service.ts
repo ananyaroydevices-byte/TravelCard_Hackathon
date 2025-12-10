@@ -113,6 +113,9 @@ export async function generateItinerary(
   let aiMetadata = {};
 
   if (travelerImages.length > 0 && userId) {
+    console.log('🖼️ Generating personalized destination image with AI...');
+    console.log('Using traveler photo:', travelerImages[0]);
+
     const aiResult = await generatePersonalizedDestinationImage(
       travelerImages[0],
       destinations[0],
@@ -120,13 +123,17 @@ export async function generateItinerary(
     );
 
     if (aiResult.url) {
+      console.log('✅ AI-generated image created successfully');
       destinationImage = aiResult.url;
       isAiGenerated = aiResult.isAiGenerated;
       aiMetadata = aiResult.metadata;
     } else {
+      console.log('⚠️ AI generation failed, falling back to stock image');
+      console.log('Error:', aiResult.metadata?.error);
       destinationImage = await fetchDestinationImage(destinations[0]);
     }
   } else {
+    console.log('📸 No traveler photos provided, using stock image');
     destinationImage = await fetchDestinationImage(destinations[0]);
   }
 
