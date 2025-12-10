@@ -176,12 +176,26 @@ export async function generatePersonalizedDestinationImage(
 }
 
 async function downloadImageAsBase64(imageUrl: string): Promise<string> {
-  const response = await fetch(imageUrl);
+  const cacheBustedUrl = imageUrl.includes('?')
+    ? `${imageUrl}&t=${Date.now()}`
+    : `${imageUrl}?t=${Date.now()}`;
+
+  const response = await fetch(cacheBustedUrl, {
+    cache: 'no-store',
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  });
+
   if (!response.ok) {
     throw new Error('Failed to download image');
   }
 
   const blob = await response.blob();
+  console.log('📥 Downloaded image size:', (blob.size / 1024).toFixed(2), 'KB');
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {

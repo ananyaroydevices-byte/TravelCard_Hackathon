@@ -151,7 +151,8 @@ export function TripDetailsPage() {
             .from('traveler-photos')
             .getPublicUrl(uploadData.path);
 
-          uploadedImageUrls.push(urlData.publicUrl);
+          const cacheBustedUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+          uploadedImageUrls.push(cacheBustedUrl);
         }
       }
 
